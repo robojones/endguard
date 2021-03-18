@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+// Package endguard specifies the all data structures for the endguard end-to-end encryption.
+package endguard;
+
+// An EncryptedMessage contains AES-256-CBC encrypted data and the nonce used for encryption.
+message EncryptedMessage {
+  // Nonce used for encryption.
+  bytes nonce = 1;
+  // Ciphertext is the encrypted data.
+  bytes ciphertext = 2;
+  // MAC calculated by the encrypting party.
+  bytes mac = 3;
+}
+
+// A ConnectionOffer contains all information the other party needs to create a secure connection.
+// This message is the first message of the handshake to establish a secure connection.
+message ConnectionOffer {
+  // NewDiffieHellmanPublicKey is the public key of a newly generated curve25519 Diffie-Hellman key pair from the creator of the ConnectionOffer.
+  bytes newDiffieHellmanPublicKey = 10;
+}
+
+// A ConnectionConfirmation package is sent to the creator of the ConnectionOffer to complete the handshake for the secure connection.
+// This message is the second (and final) message of the handshake to establish a secure connection.
+message ConnectionConfirmation {
+  bytes connectionOfferDiffieHellmanPublicKey = 1;
+  // OutgoingSHA256RatchetInitValue is the initial value for the SHA-256 hash ratchet.
+  // The outgoing hash ratchet is used as key material for the encryption of outgoing messages.
+  bytes outgoingSHA256RatchetInitValue = 2;
+  // IncomingSHA256RatchetInitValue is the initial value for the SHA-256 hash ratchet.
+  // The incoming hash ratchet is used as key material for the encryption of incoming messages.
+  bytes incomingSHA256RatchetInitValue = 3;
+  // OutgoingNewDiffieHellmanPublicKey is the public key of a newly generated curve25519 Diffie-Hellman key pair from the initiator.
+  // Initialize the OutgoingDiffieHellmanRatchet of the sender with the private key matching this public key and the ConnectionOffer.NewDiffieHellmanPublicKey.
+  // Initialize the IncomingDiffieHellmanRatchet of the recipient with this public key and the ConnectionOffer.NewDiffieHellmanPublicKey.
+  bytes outgoingNewDiffieHellmanPublicKey = 4;
+  // IncomingNewDiffieHellmanPublicKey is the public key of a newly generated curve25519 Diffie-Hellman key pair from the initiator.
+  // Initialize the IncomingDiffieHellmanRatchet of the sender with the private key matching this public key and the ConnectionOffer.NewDiffieHellmanPublicKey.
+  // Initialize the OutgoingDiffieHellmanRatchet of the recipient with this public key and the ConnectionOffer.NewDiffieHellmanPublicKey.
+  bytes incomingNewDiffieHellmanPublicKey = 5;
+}
+
+// An Envelope contains payload for the recipient at the other end of the secure connection.
+// It also includes information to update the cryptographic ratchets.
+message Envelope {
+  // RecipientDiffieHellmanPublicKey is an existing curve25519 Diffie-Hellman public key previously received from the recipient.
+  bytes recipientDiffieHellmanPublicKey = 1;
+  // SenderNewDiffieHellmanPublicKey is the public key of a newly generated curve25519 Diffie-Hellman key pair.
+  bytes senderNewDiffieHellmanPublicKey = 2;
+  // Payload in unencrypted byte format.
+  bytes payload = 10;
+}
+
+// DiffieHellmanKeyPair contains a curve25519 public-private key pair.
+message DiffieHellmanKeyPair {
+  // DiffieHellmanPublicKey is the public key of this key pair.
+  bytes diffieHellmanPublicKey = 1;
+  // DiffieHellmanPrivateKey is the private key of this key pair.
+  bytes diffieHellmanPrivateKey = 2;
+}
+
+// The state of the connection initialization.
+enum State {
+  NOT_INITIALIZED = 0;
+  HANDSHAKE = 1;
+  ESTABLISHED = 2;
+}
+
+// The ConnectionState contains all encryption keys and ratchets for key derivation of the secure connection.
+// It is only changed or updated AFTER a message envelope is encrypted or decrypted.
+message ConnectionState {
+  // InitializationState of the connection.
+  State initializationState = 1;
+
+  // RemoteDiffieHellmanKey is the SenderNewDiffieHellmanPublicKey from the latest incoming Envelope.
+  bytes remoteDiffieHellmanKey = 8;
+  // LocalDiffieHellmanKeyPairs is a list of curve25519 Diffie-Hellman key pairs.
+  // Every time an outgoing message is sent, the newly generated key pair is appended to the end of the list.
+  // When a public key is used in an incoming message, all key pairs left of it must be removed from the list.
+  repeated DiffieHellmanKeyPair localDiffieHellmanKeyPairs = 9;
+
+  // IncomingMessageSHA256Ratchet is a hash chain derived from incoming message Envelopes.
+  // Initialize with OutgoingMessageSHA256Ratchet := ConnectionConfirmation.incomingSHA256RatchetInitValue
+  // It is updated with the following calculation where a | b is the concatenation of a and b:
+  // IncomingMessageSHA256Ratchet := SHA-256(serialize(Envelope) | IncomingMessageSHA256Ratchet)
+  bytes incomingSHA256Ratchet = 12;
+  // OutgoingMessageSHA256Ratchet is a hash chain derived from outgoing message Envelopes.
+  // Initialize with OutgoingMessageSHA256Ratchet := ConnectionConfirmation.outgoingSHA256RatchetInitValue
+  // Update with the following calculation where a | b is the concatenation of a and b:
+  // OutgoingMessageSHA256Ratchet := SHA-256(serialize(Envelope) | OutgoingMessageSHA256Ratchet)
+  bytes outgoingSHA256Ratchet = 13;
+
+  // IncomingDiffieHellmanRatchet is a key negotiated with the curve25519 Diffie-Hellman key agreement algorithm.
+  // It is updated using the local private key (LocalPrivateKey) matching the RecipientDiffieHellmanPrivateKey from the Envelope and the SenderNewDiffieHellmanPublicKey.
+  // IncomingDiffieHellmanRatchet := Curve25519DiffieHellman(LocalPrivateKey, SenderNewDiffieHellmanPublicKey)
+  bytes incomingDiffieHellmanRatchet = 14;
+  // OutgoingDiffieHellmanRatchet is a key negotiated with the curve25519 Diffie-Hellman key agreement algorithm.
+  // It is updated using local private key (LocalPrivateKey) matching the SenderNewDiffieHellmanPublicKey from the Envelope and the RecipientNewDiffieHellmanPublicKey.
+  // OutgoingDiffieHellmanRatchet := Curve25519DiffieHellman(LocalPrivateKey, RecipientNewDiffieHellmanPublicKey)
+  bytes outgoingDiffieHellmanRatchet = 15;
+}
