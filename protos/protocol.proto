@@ -5,12 +5,22 @@ package endguard;
 
 // An EncryptedMessage contains AES-256-CBC encrypted data and the nonce used for encryption.
 message EncryptedMessage {
+  enum Algorithm {
+    UNKNOWN = 0;
+    AES256_GCM = 1;
+    CHACHA20_POLY1305 = 2; 
+  }
+  
+  Algorihm algorithm = 1;
+
   // Nonce used for encryption.
-  bytes nonce = 1;
-  // Ciphertext is the encrypted data.
-  bytes ciphertext = 2;
-  // MAC calculated by the encrypting party.
+  bytes nonce = 2;
+  
+    // MAC calculated by the encrypting party.
   bytes mac = 3;
+  
+  // Ciphertext is the encrypted data.
+  bytes ciphertext = 4;
 }
 
 // A ConnectionOffer contains all information the other party needs to create a secure connection.
