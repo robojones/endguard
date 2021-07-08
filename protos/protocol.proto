@@ -1,16 +1,31 @@
 syntax = "proto3";
 
-// Package endguard specifies the all data structures for the endguard end-to-end encryption.
+// Package endguard specifies the all data structures for the Endguard end-to-end encryption.
 package endguard;
 
-// An EncryptedMessage contains AES-256-CBC encrypted data and the nonce used for encryption.
+// The algorithm used to encrypt a package.
+enum Algorithm {
+  // UNKNOWN is the default value if the Algorithm is not set.
+  UNKNOWN = 0;
+  // AES256_GCM is the AES encryption with 256 bit key in block cipher mode and with GCM MAC (AES-256-GCM).
+  AES256_GCM = 1;
+  // CHACHA20_POLY1305 is the ChaCha20 stream cipher encryption combined with a POLY1305 MAC (ChaCha20-Poly1305).
+  CHACHA20_POLY1305 = 2;
+}
+
+// An EncryptedMessage contains AES-256-GCM encrypted data and the nonce used for encryption.
 message EncryptedMessage {
+  // Algorithm used to encrypt the message.
+  Algorithm algorithm = 1;
+
   // Nonce used for encryption.
-  bytes nonce = 1;
-  // Ciphertext is the encrypted data.
-  bytes ciphertext = 2;
-  // MAC calculated by the encrypting party.
+  bytes nonce = 2;
+  
+    // MAC calculated by the encrypting party.
   bytes mac = 3;
+  
+  // Ciphertext is the encrypted data.
+  bytes ciphertext = 4;
 }
 
 // A ConnectionOffer contains all information the other party needs to create a secure connection.
@@ -59,18 +74,28 @@ message DiffieHellmanKeyPair {
   bytes diffieHellmanPrivateKey = 2;
 }
 
-// The state of the connection initialization.
-enum State {
-  NOT_INITIALIZED = 0;
-  HANDSHAKE = 1;
-  ESTABLISHED = 2;
-}
 
 // The ConnectionState contains all encryption keys and ratchets for key derivation of the secure connection.
 // It is only changed or updated AFTER a message envelope is encrypted or decrypted.
 message ConnectionState {
+  // The state of the connection initialization.
+  enum State {
+    // NOT_INITIALIZED means that the connection has not stared the handshake yet.
+    // No messages can be encrypted/decrypted yet.
+    NOT_INITIALIZED = 0;
+    // HANDSHAKE in progress.
+    // No messages can be encrypted/decrypted yet.
+    HANDSHAKE = 1;
+    // ESTABLISHED means that the handshake is complete.
+    // Messages can now be encrypted/decrypted.
+    ESTABLISHED = 2;
+  }
+
   // InitializationState of the connection.
   State initializationState = 1;
+
+  // OutgoingEncryptionAlgorithm specifies what encryption scheme should be used for outgoing messages.
+  Algorithm outgoingEncryptionAlgorithm = 2;
 
   // RemoteDiffieHellmanKey is the SenderNewDiffieHellmanPublicKey from the latest incoming Envelope.
   bytes remoteDiffieHellmanKey = 8;
