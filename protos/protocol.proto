@@ -3,7 +3,7 @@ syntax = "proto3";
 // Package endguard specifies the all data structures for the Endguard end-to-end encryption.
 package endguard;
 
-// The algorithm used to encrypt a package.
+// The algorithm used to encrypt a message.
 enum Algorithm {
   // UNKNOWN is the default value if the Algorithm is not set.
   UNKNOWN = 0;
@@ -38,7 +38,7 @@ message ConnectionOffer {
   bytes newDiffieHellmanPublicKey = 1;
 }
 
-// A ConnectionConfirmation package is sent to the creator of the ConnectionOffer to complete the handshake for the secure connection.
+// A ConnectionConfirmation message is sent to the creator of the ConnectionOffer to complete the handshake for the secure connection.
 // This message is the second (and final) message of the handshake to establish a secure connection.
 message ConnectionConfirmation {
   bytes connectionOfferDiffieHellmanPublicKey = 1;
